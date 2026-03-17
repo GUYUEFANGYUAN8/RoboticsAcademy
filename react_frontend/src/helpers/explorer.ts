@@ -10,6 +10,7 @@ import {
   uploadFile,
 } from "Api";
 
+// Centralize file explorer actions so UI components share the same API contract.
 export const fileExplorer = {
   name: "Code",
   list: (project: string) => {

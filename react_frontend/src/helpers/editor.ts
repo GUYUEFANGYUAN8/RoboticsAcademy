@@ -5,6 +5,7 @@ import {
 import { Snippet } from "jderobot-ide-interface";
 
 export const getHalGuiMethods = (prevWord: string): Snippet[] => {
+  // Infer the current exercise from the route so autocomplete stays context-aware.
   const pathName = window.location.pathname;
   const exerciseNameArray = pathName.split("/").filter(Boolean);
   const exerciseNameRaw = exerciseNameArray[exerciseNameArray.length - 1];
