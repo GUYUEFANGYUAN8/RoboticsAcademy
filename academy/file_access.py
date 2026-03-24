@@ -32,12 +32,13 @@ class FAL(ABC):
         return self.path_join(self.academy_path(), exercise_id)
 
     def helpers_path(self, exercise_id) -> str:
-        """Return the directory that stores helper templates for an exercise."""
         return self.path_join(self.helper, exercise_id)
 
     def exercise_helper_path(self, project_id, language) -> str:
-        """Resolve the helper template directory for a project/language pair."""
-        return self.path_join(self.helpers_path(project_id), f"{language}_template/")
+        return self.path_join(
+            self.helpers_path(project_id),
+            f"{language}_template/",
+        )
 
     @abstractmethod
     def path_join(self, a: str, b: str) -> str:
@@ -57,6 +58,8 @@ class FAL(ABC):
 
     @abstractmethod
     def create(self, path: str, content):
+        # Keep these checks in the abstract layer so every backend enforces the
+        # same path and existence rules before touching the filesystem.
         if ".." in path:
             raise InvalidPath(path)
 
@@ -217,7 +220,6 @@ class FAL_RA(FAL):
         return os.path.join(a, b)
 
     def exists(self, path: str) -> bool:
-        """Return -1 for missing paths, 0 for directories, or file size for files."""
         if not os.path.exists(path):
             return -1
 
@@ -233,11 +235,11 @@ class FAL_RA(FAL):
         return os.path.isfile(path)
 
     def create(self, path: str, content):
-        """Create a text file and make it writable from the containerized stack."""
         super().create(path, content)
 
         with open(path, "w") as f:
             f.write(content)
+        # Keep the file writable for other processes in the Academy stack.
         os.chmod(path, 0o777)
 
     def create_binary(self, path: str, content):
@@ -257,7 +259,6 @@ class FAL_RA(FAL):
         os.chmod(path, 0o777)
 
     def write_binary(self, path: str, content):
-        """Overwrite a binary file and keep the expected writable permissions."""
         super().write_binary(path, content)
 
         with open(path, "wb") as f:
@@ -285,18 +286,21 @@ class FAL_RA(FAL):
         """Return the direct child directories for a validated path."""
         super().listdirs(path)
 
-        return [d for d in os.listdir(path) if self.isdir(self.path_join(path, d))]
+        return [d for d in os.listdir(path)
+                if self.isdir(self.path_join(path, d))]
 
     def listfiles(self, path: str):
         """Return the direct child files for a validated path."""
         super().listfiles(path)
 
-        return [d for d in os.listdir(path) if self.isfile(self.path_join(path, d))]
+        return [d for d in os.listdir(path)
+                if self.isfile(self.path_join(path, d))]
 
     def list_formatted(self, path: str, base_group: str):
         """Build the explorer tree structure consumed by the frontend."""
         super().list_formatted(path, base_group)
 
+        # list_dir already produces the nested structure used by the explorer.
         return list_dir(path, path, base_group=base_group)
 
     def mkdir(self, path: str):

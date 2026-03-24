@@ -29,6 +29,8 @@ CUSTOM_EXCEPTIONS = (
     ResourceAlreadyExistsHelpers,
 )
 
+# Reuse a preconfigured file-access object and clone it per request so
+# each wrapped view starts from the same backend paths safely.
 local_fal = FAL_RA(
     settings.BASE_DIR,
     os.path.join(settings.BASE_DIR, "exercises"),
@@ -44,20 +46,34 @@ def error_wrapper(type: str, param: list[str | tuple] = []):
         def wrapper(request):
             try:
                 fal = copy(local_fal)
-                check_parameters(request.data if type == "POST" else request.GET, param)
+                check_parameters(
+                    request.data if type == "POST" else request.GET,
+                    param,
+                )
                 return func(fal, request)
             except CUSTOM_EXCEPTIONS as e:
+                # Domain-specific exceptions already carry the status code that
+                # should be exposed to the frontend.
                 print(str(e))
                 return Response({"message": str(e)}, status=e.error_code)
             except json.JSONDecodeError as e:
                 print(str(e))
-                return Response({"error": f"Invalid JSON format: {str(e)}"}, status=422)
+                return Response(
+                    {"error": f"Invalid JSON format: {str(e)}"},
+                    status=422,
+                )
             except (binascii.Error, ValueError) as e:
                 print(str(e))
-                return Response({"error": f"Invalid B64 format: {str(e)}"}, status=422)
+                return Response(
+                    {"error": f"Invalid B64 format: {str(e)}"},
+                    status=422,
+                )
             except Exception as e:
                 print(str(e))
-                return Response({"error": f"An error occurred: {str(e)}"}, status=500)
+                return Response(
+                    {"error": f"An error occurred: {str(e)}"},
+                    status=500,
+                )
 
         return wrapper
 
@@ -65,11 +81,15 @@ def error_wrapper(type: str, param: list[str | tuple] = []):
 
 
 def check_parameters(request, param: list[str | tuple]):
-    """Validate required request parameters."""
+    """
+    Validate that required fields are present and meet length constraints.
+    """
 
     for p in param:
         min_len = 0
         if type(p) is tuple:
+            # A tuple parameter encodes both the field name and the minimum
+            # accepted payload length, e.g. ("location", -1).
             min_len = p[1]
             p = p[0]
         if p not in request:
