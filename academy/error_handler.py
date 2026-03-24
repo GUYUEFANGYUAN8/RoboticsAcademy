@@ -29,8 +29,6 @@ CUSTOM_EXCEPTIONS = (
     ResourceAlreadyExistsHelpers,
 )
 
-# Reuse a preconfigured file-access object and clone it per request so
-# each wrapped view starts from the same backend paths safely.
 local_fal = FAL_RA(
     settings.BASE_DIR,
     os.path.join(settings.BASE_DIR, "exercises"),
@@ -52,8 +50,6 @@ def error_wrapper(type: str, param: list[str | tuple] = []):
                 )
                 return func(fal, request)
             except CUSTOM_EXCEPTIONS as e:
-                # Domain-specific exceptions already carry the status code that
-                # should be exposed to the frontend.
                 print(str(e))
                 return Response({"message": str(e)}, status=e.error_code)
             except json.JSONDecodeError as e:
@@ -88,8 +84,6 @@ def check_parameters(request, param: list[str | tuple]):
     for p in param:
         min_len = 0
         if type(p) is tuple:
-            # A tuple parameter encodes both the field name and the minimum
-            # accepted payload length, e.g. ("location", -1).
             min_len = p[1]
             p = p[0]
         if p not in request:
