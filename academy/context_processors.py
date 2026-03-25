@@ -1,3 +1,5 @@
+"""Context processors exposed by the academy Django app."""
+
 from django.conf import settings
 
 
